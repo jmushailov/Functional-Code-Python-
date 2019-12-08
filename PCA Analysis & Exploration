@@ -1,0 +1,117 @@
+# Customer Segmentation Template
+
+import numpy as np
+import seaborn as sb # Statistical data visualization
+import matplotlib.pyplot as plt 
+import pandas as pd
+
+
+df = pd.read_csv("customers.csv")
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~ Data Preprocess ~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+df.replace([np.inf, -np.inf], np.nan) # Replace inf
+df = df.dropna(axis=1, how = 'any')
+
+# Making a scaled dataset for PCA later
+df_scaled = df.iloc[:,2:len(df.columns)+1].values
+df_scaled = scale(df_scaled)
+
+
+
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~ Explore the Data ~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+df.head(10) 
+df.tail(10)
+
+# rename columns to make it easier
+df.columns = ['ID', 'gender','age','income','spend_score']
+
+df['CustomerID'] = pd.Categorical(df['ID'])
+df['Gender'] = pd.Categorical(df['gender'])
+# Alternative Way to cast to categorical
+ #   df['col_name'] = df['col_name'].astype('category')
+ 
+ # Check all dtypes
+df.dtypes
+ 
+ # Descriptive Statistics
+df.describe()
+ 
+ # See Distribution of the variables
+sb.countplot(x=df['gender'], data = df)
+sb.countplot(x=df['x2'], data = df)
+
+# See histogram of discrete numeric
+plt.hist(df['age'], bins = 25, color = 'lightblue')
+plt.title('Age Distribution')
+plt.xlabel('age')
+
+plt.hist(df['income'])
+plt.title('Annual Income Distribution ($K)')
+plt.xlabel('Dollars ($K)')
+
+
+# Check the difference in average stats by gender OR we can make it variable specific
+# Looking at just income
+print(df[df['gender'] == 'Female']['income'].mean())
+print(df[df['gender'] == 'Male']['income'].mean())
+# Looking at all numerics
+print(df[df['gender'] == 'Male'].mean())
+print(df[df['gender'] == 'Female'].mean())
+
+# Make an income scatter
+sb.scatterplot('age', 'income', hue = 'gender', data = df)
+plt.title('Scatter of Income By Gender')
+plt.xlabel('Age')
+plt.ylabel('Income')
+
+# Simple regression / lm plot
+sb.lmplot('age', 'income', data = df[df['gender']=='Female'])
+plt.title("LM Plot of Income & Age with Women")
+# Male 
+sb.lmplot('age', 'income', data = df[df['gender']=='Male'])
+plt.title("LM Plot of Income & Age with Men")
+
+# Or put them side by side
+sb.lmplot(x='age',y='income', row = 'gender', data=df, height = 3)
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~ PCA on Variables ~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+from sklearn import decomposition
+from sklearn.preprocessing import scale
+from sklearn.decomposition import PCA
+%matplotlib inline
+
+# Create a covariance matrix object
+covar_matrix = PCA(n_components = 3)
+    # Fit the cov matrix
+covar_matrix.fit(df_scaled)
+# Calculate variance ratios / eigenvalues
+variances = covar_matrix.explained_variance_ratio_
+var=np.cumsum(np.round(covar_matrix.explained_variance_ratio_, decimals=3)*100)
+# Cum Sum of variance explained by each variable... should end with 100
+var 
+
+# Plot the PCA
+plt.plot(var)
+plt.title("Variance Explained By # Of Features")
+plt.xlabel("# Features")
+plt.ylabel("% Variance Explained")
+
+
+# Create a table with the variable names and % of variance explained by each
+variances = np.ndarray.tolist(variances) #Create variances list
+colnames= np.ndarray.tolist(df.columns.values)[2:len(df.columns.values)] # Create colnames list
+arr = [colnames, variances] ; arr  #Make a simple 2D Array
+
+
+
+
