@@ -18,11 +18,6 @@ df = df.dropna(axis=1, how = 'any')
 df_scaled = df.iloc[:,2:len(df.columns)+1].values
 df_scaled = scale(df_scaled)
 
-
-
-
-
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ~~~~~~~~~~ Explore the Data ~~~~~~~~~~
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
