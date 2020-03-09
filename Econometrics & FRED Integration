@@ -100,8 +100,7 @@ def pg_regression(x1, x2, run_diagnostics="N"):
     else:
         print("Diagnostics not run to save computation power")
     
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~ May need to delete later. It prompts warnings
-     #return features.iloc[features.index.get_loc('np.log(VARIABLE_NAME)'),0]
+    # Return dictionary of rsq and elasticity
     return {"rsq":dat_mod.rsquared_adj, "ppg":features.iloc[features.index.get_loc('np.log(VARIABLE_NAME)'),0]} # For dictionary (multiple regressions)
 
 
