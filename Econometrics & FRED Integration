@@ -1,0 +1,128 @@
+import os
+import pandas as pd, numpy as np
+import matplotlib.pyplot as plt
+%matplotlib inline
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+from statsmodels.compat import lzip
+import math
+from fredapi import Fred
+pd.options.display.max_colwidth = 60
+import matplotlib.pyplot as plt
+from IPython.core.pylabtools import figsize
+figsize(20, 5)
+
+os.chdir('C:\\.....')
+dat = pd.read_csv('data_to_use.csv')
+
+# FRED Integration
+# Convert to proper merge format
+dat['date'] = pd.to_datetime(dat['date'])
+
+
+os.environ['FRED_API_KEY'] = 'xxxxxx'
+fred = Fred()
+
+
+merge_df = pd.DataFrame() # Create df to hold all the fred variables
+
+# Home Price Index San Francisco
+home_sf = fred.get_series('SFXRSA', observation_start = '2013-01-01', observation_end = '2019-12-01')
+home_sf = home_sf.reset_index()
+home_sf.columns = ['date','home_cali']
+merge_df = home_sf # Start the dataframe up
+del(home_sf)
+
+# Home prices Los Angeles
+home_la = fred.get_series('LXXRSA', observation_start = '2013-01-01', observation_end = '2019-12-01')
+home_la = home_la.reset_index()
+home_la.columns = ['date','home_la']
+merge_df = pd.merge(merge_df, home_la, on = 'date') 
+del(home_la)
+
+# California UE Rate
+CAUR = fred.get_series('CAUR', observation_start = '2013-01-01', observation_end = '2019-12-01')
+CAUR = CAUR.reset_index()
+CAUR.columns = ['date','CAUR']
+merge_df = pd.merge(merge_df, CAUR, on = 'date') 
+del(CAUR)
+
+
+dat = pd.merge(dat, merge_df, on = 'date') # Merge
+dat = dat.replace('#DIV/0', 0) # Convert these strings to 0's so we can convert to float64
+dat = dat[~dat.isin([np.nan, np.inf, -np.inf]).any(1)] #Remove all rows with nan/inf/-inf
+dat = dat[dat.LINE_GALLONS > 0] # Can't take a log of negatives
+dat = dat[dat.ext_ppg > 0] # Can't take a log of negatives
+
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Regression, Variable Specific ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+def pg_regression(x1, x2, run_diagnostics="N"):
+    
+    reg_df = dat[dat.var1 == x1] # Dummy Variable Names
+    reg_df = reg_df[reg_df['var2'] == x2] # Dummy Variables
+    # Convert float objects to float64 so you can take logs 
+    reg_df.unrate = reg_df.var1.astype('float64')
+    reg_df.ppg = reg_df.var2.astype('float64')
+
+    dat_mod = ols("np.log(Y) ~ np.log(X)+ np.log(home_cali) + np.log(home_la) + np.log(CAUR)+np.log(home_auth)+ np.log(lead_idx) +np.log(tempAvg_F) + C(dummy)", data = reg_df).fit()
+    print(dat_mod.summary())
+# Extract features
+    features = pd.DataFrame(dat_mod.params)
+# Indicies Slicing
+    features.index[2]
+    print( "Elasticity for this PG is: " , features.iloc[features.index.get_loc('np.log(list_ppg)'),0]) #Print the PPG for this PG
+
+    if run_diagnostics =="Y":
+        # Partial Regression Plots --> Analyze effect of x.n on Y NOT including the other regressors
+        fig = plt.figure(figsize = (12,8))
+        fig = sm.graphics.plot_partregress_grid(dat_mod, fig = fig)
+        
+        # CCPR Plots --> Analyze effect of x.n on Y given the other regressors
+        fig = plt.figure(figsize = (12,8))
+        fig = sm.graphics.plot_ccpr_grid(dat_mod, fig = fig)
+        
+        # Cook Distance --> Measure the influence of every point on the regression
+        fig, ax = plt.subplots(figsize=(12,8))
+        fig = sm.graphics.influence_plot(dat_mod, ax=ax, criterion="cooks")
+        
+        # Single Variable Diagnostics --> 
+            
+        def var_diagnostics(features):
+            for i in features.index:
+                fig = plt.figure(figsize=(12,8))
+                fig = sm.graphics.plot_regress_exog(dat_mod, i, fig = fig)
+        
+        
+        fig = plt.figure(figsize=(12,8))
+      #  fig = sm.graphics.plot_regress_exog(dat_mod, "unrate", fig=fig)        
+    else:
+        print("Diagnostics not run to save computation power")
+    
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~ May need to delete later. It prompts warnings
+     #return features.iloc[features.index.get_loc('np.log(VARIABLE_NAME)'),0]
+    return {"rsq":dat_mod.rsquared_adj, "ppg":features.iloc[features.index.get_loc('np.log(VARIABLE_NAME)'),0]} # For dictionary (multiple regressions)
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Run the function example for a single variable
+pg_regression("x1",1000,"N")
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+# Multiple x's
+
+def multiple_elas(pg_list):
+    elas_dict = {}
+    try:
+        for i in pg_list:
+            elas_dict.update({i:pg_regression(i,1000,"N")})
+    except:
+        pass #was throwing errors so just pass on error
+    
+        return elas_dict
+
+
+# Run multiples
+pg_list = dat.pg_text.unique()
