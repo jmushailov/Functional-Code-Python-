@@ -1,5 +1,3 @@
-# Most of this code is not mine... It is taken from Super Data Science's course on Neural Networks
-
 # Importing the libraries
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,6 +9,7 @@ X = dataset.iloc[:, 1:3].values
 y = dataset.iloc[:, 3].values
 
 # Encoding categorical data; alternatively use get_dummies from pandas
+# pd.get_dummies(X, columns = [])
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 labelencoder_X_1 = LabelEncoder()
 X[:, 1] = labelencoder_X_1.fit_transform(X[:, 1])
